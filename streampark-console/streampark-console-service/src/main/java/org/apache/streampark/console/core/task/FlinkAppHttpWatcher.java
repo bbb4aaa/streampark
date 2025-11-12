@@ -19,12 +19,16 @@ package org.apache.streampark.console.core.task;
 
 import org.apache.streampark.common.enums.ExecutionMode;
 import org.apache.streampark.common.util.DateUtils;
+import org.apache.streampark.common.util.HdfsUtils;
 import org.apache.streampark.common.util.HttpClientUtils;
 import org.apache.streampark.common.util.ThreadUtils;
 import org.apache.streampark.common.util.YarnUtils;
 import org.apache.streampark.console.base.util.JacksonUtils;
 import org.apache.streampark.console.core.entity.Application;
 import org.apache.streampark.console.core.entity.FlinkCluster;
+import org.apache.streampark.console.core.entity.Savepoint;
+import org.apache.streampark.console.core.enums.CheckPointStatus;
+import org.apache.streampark.console.core.enums.CheckPointType;
 import org.apache.streampark.console.core.enums.FlinkAppState;
 import org.apache.streampark.console.core.enums.OptionState;
 import org.apache.streampark.console.core.enums.ReleaseState;
@@ -40,6 +44,8 @@ import org.apache.streampark.console.core.service.SavepointService;
 import org.apache.streampark.console.core.service.alert.AlertService;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.Path;
 import org.apache.http.client.config.RequestConfig;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -57,7 +63,10 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +77,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import scala.collection.JavaConverters;
 
 /** This implementation is currently used for tracing flink job on yarn,standalone,remote mode */
 @Slf4j
@@ -223,6 +237,7 @@ public class FlinkAppHttpWatcher {
               log.warn("[StreamPark] get state from flink failed ", flinkException);
               // query status from yarn rest api
               try {
+                handleHdfsPoints(application);
                 getFromYarnRestApi(application);
                 cleanupLost(application);
               } catch (Exception yarnException) {
@@ -320,7 +335,9 @@ public class FlinkAppHttpWatcher {
         try {
           // 1) set info from JobOverview
           handleJobOverview(application, jobOverview);
+          log.info("test handle jobOverview in canncel");
         } catch (Exception e) {
+          log.info("test handle jobOverview in catch");
           log.error("get flink jobOverview error: {}", e.getMessage(), e);
         }
         try {
@@ -389,6 +406,88 @@ public class FlinkAppHttpWatcher {
     if (checkPoints != null) {
       checkpointProcessor.process(application, checkPoints);
     }
+  }
+
+  /** handle hdfs checkpoint */
+  private void handleHdfsPoints(Application application) throws Exception {
+    CheckPoints checkPoints = hdfsCheckpoints(application);
+    log.info("get hdfs last checkpoints, path : {}", checkPoints.getLatestCheckpoint());
+    if (checkPoints != null) {
+      checkpointProcessor.process(application, checkPoints);
+    } else {
+      log.error("http checkpoint and hdfs checkpoint are both null");
+    }
+  }
+
+  /** get hdfs checkpoints */
+  private CheckPoints hdfsCheckpoints(Application application) throws Exception {
+    Long appId = application.getId();
+    Savepoint savepoint = Optional.ofNullable(savepointService.getCreateLatest(appId)).orElse(null);
+    String sourcePath = Optional.ofNullable(savepoint).map(Savepoint::getPath).orElse(null);
+    log.info("get hdfs checkpoints, appId: {} , sourcePath: {}", appId, sourcePath);
+
+    if (!StringUtils.isEmpty(sourcePath)) {
+      Path path = new Path(sourcePath);
+      String scheme = path.toUri().getScheme();
+      if (scheme.equals("hdfs")) {
+        String parent = path.getParent().toString();
+        scala.collection.immutable.List<FileStatus> fileStatusList = HdfsUtils.list(parent);
+
+        Collection<FileStatus> javaFileStatusCollection =
+            JavaConverters.asJavaCollection(fileStatusList);
+
+        CheckPoints checkPoints = new CheckPoints();
+        List<CheckPoints.CheckPoint> checkPointList = new ArrayList<>();
+
+        Stream<FileStatus> sortedFileStatus =
+            javaFileStatusCollection.stream()
+                .filter(
+                    fileStatus ->
+                        !Arrays.asList("taskowned", "shared")
+                            .contains(fileStatus.getPath().getName()))
+                .sorted(Comparator.comparing(FileStatus::getModificationTime).reversed());
+
+        sortedFileStatus.forEachOrdered(
+            fileStatus -> {
+              Path checkPointPath = fileStatus.getPath();
+              String name = checkPointPath.getName();
+              Pattern pattern = Pattern.compile("chk-(\\d+)");
+              Matcher matcherId = pattern.matcher(name);
+              if (matcherId.find()) {
+
+                Long id = Long.parseLong(matcherId.group(1));
+                String chechPointFullPath = checkPointPath.toString();
+                long modificationTime = fileStatus.getModificationTime();
+
+                CheckPoints.CheckPoint hdfsCheckPoint = new CheckPoints.CheckPoint();
+                hdfsCheckPoint.setId(id);
+                hdfsCheckPoint.setStatus(CheckPointStatus.COMPLETED.name());
+                hdfsCheckPoint.setExternalPath(chechPointFullPath);
+                hdfsCheckPoint.setIsSavepoint(false);
+                hdfsCheckPoint.setLatestAckTimestamp(modificationTime);
+                hdfsCheckPoint.setCheckpointType(CheckPointType.CHECKPOINT.name());
+                hdfsCheckPoint.setTriggerTimestamp(modificationTime);
+                hdfsCheckPoint.setStateSize(0L);
+                hdfsCheckPoint.setEndToEndDuration(0L);
+                hdfsCheckPoint.setDiscarded(false);
+
+                log.info("set hdfs checkpoint, id: {} hdfsCheckPoint: {}", id, hdfsCheckPoint);
+                checkPointList.add(hdfsCheckPoint);
+
+                if (checkPoints.getLatest() == null) {
+                  log.info("set latest checkpoint, id: {} hdfsCheckPoint: {}", id, hdfsCheckPoint);
+                  CheckPoints.Latest latestCheckPoint = new CheckPoints.Latest();
+                  latestCheckPoint.setCompleted(hdfsCheckPoint);
+                  checkPoints.setLatest(latestCheckPoint);
+                }
+              }
+              checkPoints.setHistory(checkPointList);
+            });
+        return checkPoints;
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -542,6 +641,7 @@ public class FlinkAppHttpWatcher {
      the task is considered CANCELED
     */
     Byte flag = CANCELING_CACHE.getIfPresent(application.getId());
+    log.info("flag: {}", flag);
     if (flag != null) {
       log.info("[StreamPark][FlinkAppHttpWatcher] previous state: canceling.");
       FlinkAppState flinkAppState = FlinkAppState.CANCELED;
@@ -577,6 +677,7 @@ public class FlinkAppHttpWatcher {
       } else {
         try {
           String state = yarnAppInfo.getApp().getFinalStatus();
+          log.info("yarn final status: {}", state);
           FlinkAppState flinkAppState = FlinkAppState.of(state);
           if (FlinkAppState.OTHER.equals(flinkAppState)) {
             String trackingUrl = yarnAppInfo.getApp().getTrackingUrl();
@@ -712,7 +813,7 @@ public class FlinkAppHttpWatcher {
     return app.isKubernetesModeJob();
   }
 
-  private YarnAppInfo httpYarnAppInfo(Application application) throws Exception {
+  public static YarnAppInfo httpYarnAppInfo(Application application) throws Exception {
     String reqURL = "ws/v1/cluster/apps/".concat(application.getClusterId());
     return yarnRestRequest(reqURL, YarnAppInfo.class);
   }
@@ -797,7 +898,7 @@ public class FlinkAppHttpWatcher {
     return null;
   }
 
-  private <T> T yarnRestRequest(String url, Class<T> clazz) throws IOException {
+  public static <T> T yarnRestRequest(String url, Class<T> clazz) throws IOException {
     String result = YarnUtils.restRequest(url, HTTP_TIMEOUT);
     return JacksonUtils.read(result, clazz);
   }

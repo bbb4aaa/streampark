@@ -240,6 +240,20 @@ public class SavepointServiceImpl extends ServiceImpl<SavepointMapper, Savepoint
   }
 
   @Override
+  public Savepoint getCreateLatest(Long id) {
+    List<Savepoint> savepointList =
+        this.lambdaQuery().eq(Savepoint::getAppId, id).orderByDesc(Savepoint::getCreateTime).list();
+
+    if (!savepointList.isEmpty()) {
+      return savepointList.get(0);
+    }
+    return this.lambdaQuery()
+        .eq(Savepoint::getAppId, id)
+        .orderByDesc(Savepoint::getTriggerTime)
+        .one();
+  }
+
+  @Override
   public String getSavePointPath(Application appParam) throws Exception {
     Application application = applicationService.getById(appParam.getId());
 

@@ -22,6 +22,7 @@ import org.apache.streampark.console.core.enums.CheckPointType;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -48,6 +49,7 @@ public class CheckPoints implements Serializable {
 
   @Getter
   @Setter
+  @Data
   public static class CheckPoint implements Serializable {
     private Long id;
     private String status;
