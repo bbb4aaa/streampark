@@ -65,6 +65,7 @@ import org.apache.streampark.console.core.enums.OptionState;
 import org.apache.streampark.console.core.enums.ReleaseState;
 import org.apache.streampark.console.core.mapper.ApplicationMapper;
 import org.apache.streampark.console.core.metrics.flink.JobsOverview;
+import org.apache.streampark.console.core.metrics.yarn.YarnAppInfo;
 import org.apache.streampark.console.core.runner.EnvInitializer;
 import org.apache.streampark.console.core.service.AppBuildPipeService;
 import org.apache.streampark.console.core.service.ApplicationBackUpService;
@@ -1287,11 +1288,27 @@ public class ApplicationServiceImpl extends ServiceImpl<ApplicationMapper, Appli
 
   @Override
   public boolean mapping(Application appParam) {
+    log.info("mapping application: {}", appParam);
     boolean mapping = this.baseMapper.mapping(appParam);
+    log.info("this baseMapper: {} this mapping: {}", this.baseMapper.getClass().getName(), mapping);
     Application application = getById(appParam.getId());
     if (application.isKubernetesModeJob()) {
       flinkK8sWatcher.doWatching(k8sWatcherWrapper.toTrackId(application));
     } else {
+      log.info("application: {}", application);
+      if (ExecutionMode.isYarnMode(application.getExecutionMode())) {
+        try {
+          YarnAppInfo yarnAppInfo = FlinkAppHttpWatcher.httpYarnAppInfo(application);
+          String amRPCAddress = "http://" + yarnAppInfo.getApp().getAmRPCAddress();
+          log.info(
+              "jobManagerUrl:{} amRPCAddress: {}", application.getJobManagerUrl(), amRPCAddress);
+          application.setJobManagerUrl(amRPCAddress);
+          update(application);
+        } catch (Exception e) {
+          log.error("getFromYarnRestApi failed: ", e);
+        }
+      }
+
       FlinkAppHttpWatcher.doWatching(application);
     }
     return mapping;

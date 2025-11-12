@@ -59,5 +59,6 @@ public class YarnAppInfo {
     private Long numNonAMContainerPreempted;
     private Long numAMContainerPreempted;
     private String logAggregationStatus;
+    private String amRPCAddress;
   }
 }
