@@ -45,6 +45,7 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -66,6 +67,7 @@ import static org.apache.streampark.console.core.enums.FlinkAppState.of;
 @Setter
 @TableName("t_flink_app")
 @Slf4j
+@Data
 public class Application implements Serializable {
 
   @TableId(type = IdType.AUTO)

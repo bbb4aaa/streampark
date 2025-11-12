@@ -562,7 +562,6 @@ public class ApplicationServiceImpl extends ServiceImpl<ApplicationMapper, Appli
           // 4) appControl
           record.setAppControl(buildAppControl(record));
         });
-
     return page;
   }
 
@@ -1288,21 +1287,21 @@ public class ApplicationServiceImpl extends ServiceImpl<ApplicationMapper, Appli
 
   @Override
   public boolean mapping(Application appParam) {
-    log.info("mapping application: {}", appParam);
     boolean mapping = this.baseMapper.mapping(appParam);
-    log.info("this baseMapper: {} this mapping: {}", this.baseMapper.getClass().getName(), mapping);
     Application application = getById(appParam.getId());
     if (application.isKubernetesModeJob()) {
       flinkK8sWatcher.doWatching(k8sWatcherWrapper.toTrackId(application));
     } else {
-      log.info("application: {}", application);
       if (ExecutionMode.isYarnMode(application.getExecutionMode())) {
         try {
           YarnAppInfo yarnAppInfo = FlinkAppHttpWatcher.httpYarnAppInfo(application);
           String amRPCAddress = "http://" + yarnAppInfo.getApp().getAmRPCAddress();
           log.info(
               "jobManagerUrl:{} amRPCAddress: {}", application.getJobManagerUrl(), amRPCAddress);
+          application.setTracking(1);
+          application.setStartTime(new Date());
           application.setJobManagerUrl(amRPCAddress);
+          application.setState(FlinkAppState.RUNNING.getValue());
           update(application);
         } catch (Exception e) {
           log.error("getFromYarnRestApi failed: ", e);
