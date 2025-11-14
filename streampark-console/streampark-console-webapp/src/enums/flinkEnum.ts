@@ -54,6 +54,8 @@ export enum OperationEnum {
   SAVEPOINT = 2,
   /** user operation: cancel app */
   CANCEL = 3,
+  /** user operation: mapping app */
+  MAPPING = 4,
 }
 
 export enum OptionStateEnum {

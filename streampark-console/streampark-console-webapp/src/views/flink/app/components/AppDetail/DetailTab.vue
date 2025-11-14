@@ -392,6 +392,7 @@
                 Savepoint
               </Tag>
               <Tag color="orange" v-if="record.optionName === OperationEnum.CANCEL"> Cancel </Tag>
+              <Tag color="geekblue" v-if="record.optionName === OperationEnum.MAPPING"> Mapping </Tag>
             </template>
             <template v-if="column.dataIndex === 'yarnAppId'">
               <a type="link" @click="handleYarnUrl(record.id)" target="_blank">

@@ -27,7 +27,8 @@ public enum Operation implements Serializable {
   RELEASE(0),
   START(1),
   SAVEPOINT(2),
-  CANCEL(3);
+  CANCEL(3),
+  MAPPING(4);
 
   private final int value;
 

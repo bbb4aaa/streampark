@@ -1304,6 +1304,15 @@ public class ApplicationServiceImpl extends ServiceImpl<ApplicationMapper, Appli
           application.setJobManagerUrl(amRPCAddress);
           application.setState(FlinkAppState.RUNNING.getValue());
           update(application);
+
+          ApplicationLog applicationLog = new ApplicationLog();
+          applicationLog.setOptionName(Operation.MAPPING.getValue());
+          applicationLog.setAppId(application.getId());
+          applicationLog.setYarnAppId(application.getClusterId());
+          applicationLog.setJobManagerUrl(application.getJobManagerUrl());
+          applicationLog.setOptionTime(new Date());
+          applicationLog.setSuccess(true);
+          applicationLogService.saveOrUpdate(applicationLog);
         } catch (Exception e) {
           log.error("getFromYarnRestApi failed: ", e);
         }
