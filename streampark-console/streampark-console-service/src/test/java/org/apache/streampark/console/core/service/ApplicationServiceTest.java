@@ -101,7 +101,6 @@ class ApplicationServiceTest extends SpringTestBase {
     application.setRestart(false);
     application.setRestoreOrTriggerSavepoint(false);
     application.setAllowNonRestored(false);
-
     applicationService.start(application, false);
   }
 

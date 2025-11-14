@@ -17,11 +17,13 @@
 
 package org.apache.streampark.console.core.bean;
 
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
+@Data
 public class ResponseResult<T> {
   private int status;
   private String msg;

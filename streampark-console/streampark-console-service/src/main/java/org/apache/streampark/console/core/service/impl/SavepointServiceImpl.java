@@ -236,20 +236,7 @@ public class SavepointServiceImpl extends ServiceImpl<SavepointMapper, Savepoint
     return this.lambdaQuery()
         .eq(Savepoint::getAppId, id)
         .orderByDesc(Savepoint::getTriggerTime)
-        .one();
-  }
-
-  @Override
-  public Savepoint getCreateLatest(Long id) {
-    List<Savepoint> savepointList =
-        this.lambdaQuery().eq(Savepoint::getAppId, id).orderByDesc(Savepoint::getCreateTime).list();
-
-    if (!savepointList.isEmpty()) {
-      return savepointList.get(0);
-    }
-    return this.lambdaQuery()
-        .eq(Savepoint::getAppId, id)
-        .orderByDesc(Savepoint::getTriggerTime)
+        .last("limit 1")
         .one();
   }
 

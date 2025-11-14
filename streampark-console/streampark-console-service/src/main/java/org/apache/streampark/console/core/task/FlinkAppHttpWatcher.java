@@ -241,7 +241,7 @@ public class FlinkAppHttpWatcher {
                 getFromYarnRestApi(application);
                 cleanupLost(application);
               } catch (Exception yarnException) {
-                log.error("[StreamPark] get state from yarn failed :", flinkException);
+                log.error("[StreamPark] get state from yarn failed :", yarnException);
                 doStateFailed(application);
               }
             }
@@ -290,13 +290,20 @@ public class FlinkAppHttpWatcher {
       doPersistMetrics(application, true);
       FlinkAppState appState = application.getFlinkAppStateEnum();
       if (appState.equals(FlinkAppState.FAILED) || appState.equals(FlinkAppState.LOST)) {
-        alertService.alert(application, application.getFlinkAppStateEnum());
         if (appState.equals(FlinkAppState.FAILED)) {
           try {
+            application.setRestartCount(application.getRestartCount() + 1);
+            log.info(
+                "start failed job , clusterId:{} restartCount:{}",
+                application.getClusterId(),
+                application.getRestartCount());
+            alertService.alert(application, application.getFlinkAppStateEnum());
             applicationService.start(application, true);
           } catch (Exception e) {
             log.error(e.getMessage(), e);
           }
+        } else {
+          alertService.alert(application, application.getFlinkAppStateEnum());
         }
       }
     }
@@ -422,7 +429,7 @@ public class FlinkAppHttpWatcher {
   /** get hdfs checkpoints */
   private CheckPoints hdfsCheckpoints(Application application) throws Exception {
     Long appId = application.getId();
-    Savepoint savepoint = Optional.ofNullable(savepointService.getCreateLatest(appId)).orElse(null);
+    Savepoint savepoint = Optional.ofNullable(savepointService.getLatest(appId)).orElse(null);
     String sourcePath = Optional.ofNullable(savepoint).map(Savepoint::getPath).orElse(null);
     log.info("get hdfs checkpoints, appId: {} , sourcePath: {}", appId, sourcePath);
 
@@ -608,6 +615,11 @@ public class FlinkAppHttpWatcher {
         STOP_FROM_MAP.remove(application.getId());
         application.setState(FlinkAppState.FAILED.getValue());
         doPersistMetrics(application, true);
+        application.setRestartCount(application.getRestartCount() + 1);
+        log.info(
+            "start failed job , clusterId:{} restartCount:{}",
+            application.getClusterId(),
+            application.getRestartCount());
         alertService.alert(application, FlinkAppState.FAILED);
         applicationService.start(application, true);
         break;
@@ -708,10 +720,17 @@ public class FlinkAppHttpWatcher {
               || flinkAppState.equals(FlinkAppState.LOST)
               || (flinkAppState.equals(FlinkAppState.CANCELED) && StopFrom.NONE.equals(stopFrom))
               || applicationService.checkAlter(application)) {
-            alertService.alert(application, flinkAppState);
             stopCanceledJob(application.getId());
             if (flinkAppState.equals(FlinkAppState.FAILED)) {
+              application.setRestartCount(application.getRestartCount() + 1);
+              log.info(
+                  "start failed job , clusterId:{} restartCount:{}",
+                  application.getClusterId(),
+                  application.getRestartCount());
+              alertService.alert(application, flinkAppState);
               applicationService.start(application, true);
+            } else {
+              alertService.alert(application, flinkAppState);
             }
           }
         } catch (Exception e) {

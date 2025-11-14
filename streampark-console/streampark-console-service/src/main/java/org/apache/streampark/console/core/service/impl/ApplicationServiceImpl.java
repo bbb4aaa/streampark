@@ -1299,6 +1299,7 @@ public class ApplicationServiceImpl extends ServiceImpl<ApplicationMapper, Appli
           log.info(
               "jobManagerUrl:{} amRPCAddress: {}", application.getJobManagerUrl(), amRPCAddress);
           application.setTracking(1);
+          application.setRestartCount(0);
           application.setStartTime(new Date());
           application.setJobManagerUrl(amRPCAddress);
           application.setState(FlinkAppState.RUNNING.getValue());
@@ -1548,11 +1549,12 @@ public class ApplicationServiceImpl extends ServiceImpl<ApplicationMapper, Appli
     if (!auto) {
       application.setRestartCount(0);
     } else {
-      if (!application.isNeedRestartOnFailed()) {
+      if (!appParam.isNeedRestartOnFailed()) {
         return;
       }
+      log.info("auto start application, restartCount: {}", appParam.getRestartCount());
       appParam.setRestoreOrTriggerSavepoint(true);
-      application.setRestartCount(application.getRestartCount() + 1);
+      application.setRestartCount(appParam.getRestartCount());
     }
 
     starting(application);
