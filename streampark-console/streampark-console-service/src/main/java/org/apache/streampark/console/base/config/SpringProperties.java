@@ -191,6 +191,15 @@ public class SpringProperties {
     // metrics
     config.put("management.endpoints.enabled-by-default", "false");
 
+    // hikari
+    config.put("spring.datasource.hikari.readOnly", "false");
+    config.put("spring.datasource.hikari.connectionTimeout", "60000");
+    config.put("spring.datasource.hikari.idleTimeout", "60000");
+    config.put("spring.datasource.hikari.validationTimeout", "3000");
+    config.put("spring.datasource.hikari.loginTimeout", "5");
+    config.put("spring.datasource.hikari.maximumPoolSize", "20");
+    config.put("spring.datasource.hikari.minimumIdle", "10");
+
     return config;
   }
 
