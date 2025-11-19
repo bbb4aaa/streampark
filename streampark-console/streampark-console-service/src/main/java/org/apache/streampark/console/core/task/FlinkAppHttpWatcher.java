@@ -418,8 +418,8 @@ public class FlinkAppHttpWatcher {
   /** handle hdfs checkpoint */
   private void handleHdfsPoints(Application application) throws Exception {
     CheckPoints checkPoints = hdfsCheckpoints(application);
-    log.info("get hdfs last checkpoints, path : {}", checkPoints.getLatestCheckpoint());
     if (checkPoints != null) {
+      log.info("get hdfs last checkpoints, path : {}", checkPoints.getLatestCheckpoint());
       checkpointProcessor.process(application, checkPoints);
     } else {
       log.error("http checkpoint and hdfs checkpoint are both null");
