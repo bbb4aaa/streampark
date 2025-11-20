@@ -1461,8 +1461,18 @@ public class ApplicationServiceImpl extends ServiceImpl<ApplicationMapper, Appli
           applicationLogService.save(applicationLog);
 
           if (cancelResponse != null && cancelResponse.savepointDir() != null) {
+
+            application.setOptionState(OptionState.NONE.getValue());
+            application.setOptionTime(new Date());
+            application.setState(FlinkAppState.CANCELED.getValue());
+            application.setTracking(0);
+            updateById(application);
+
+            FlinkAppHttpWatcher.unWatching(application.getId());
+
             String savepointDir = cancelResponse.savepointDir();
             log.info("savepoint path: {}", savepointDir);
+
             Savepoint savepoint = new Savepoint();
             savepoint.setPath(savepointDir);
             savepoint.setAppId(application.getId());
@@ -1470,6 +1480,7 @@ public class ApplicationServiceImpl extends ServiceImpl<ApplicationMapper, Appli
             savepoint.setType(CheckPointType.SAVEPOINT.get());
             savepoint.setCreateTime(new Date());
             savepoint.setTriggerTime(triggerTime);
+
             savepointService.saveSavePoint(savepoint);
           }
 

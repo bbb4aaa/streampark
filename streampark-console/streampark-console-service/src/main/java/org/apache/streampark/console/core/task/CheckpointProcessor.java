@@ -26,8 +26,6 @@ import org.apache.streampark.console.core.service.ApplicationService;
 import org.apache.streampark.console.core.service.SavepointService;
 import org.apache.streampark.console.core.service.alert.AlertService;
 
-import org.apache.commons.lang3.StringUtils;
-
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.Getter;
@@ -35,7 +33,6 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.util.ObjectUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -90,14 +87,15 @@ public class CheckpointProcessor {
     if (CheckPointStatus.COMPLETED.equals(status)) {
       switch (checkPoint.getCheckPointType()) {
         case SAVEPOINT:
-          Savepoint savePoint = Optional.ofNullable(savepointService.getLatest(appId)).orElse(null);
-          if (!ObjectUtils.isEmpty(savePoint)
-              && ObjectUtils.isEmpty(savePoint.getChkId())
-              && StringUtils.equals(savePoint.getPath(), checkPoint.getPath())) {
-            log.info(
-                "the savepoint retrieved from the current HTTP request was created by a cancel operation and will be skipped.");
-            return;
-          }
+          //          Savepoint lastCheckPoint =
+          //              Optional.ofNullable(savepointService.getLatest(appId)).orElse(null);
+          //          if (!ObjectUtils.isEmpty(lastCheckPoint)
+          //              && StringUtils.equals(lastCheckPoint.getPath(), checkPoint.getPath())) {
+          //            log.error(
+          //                "the savepoint retrieved from the current HTTP request was created by a
+          // cancel operation and will be skipped.");
+          //            return;
+          //          }
 
           if (checkSaveForSavepoint(checkPointKey, checkPoint)) {
             savepointedCache.put(checkPointKey.getSavePointId(), DEFAULT_FLAG_BYTE);
