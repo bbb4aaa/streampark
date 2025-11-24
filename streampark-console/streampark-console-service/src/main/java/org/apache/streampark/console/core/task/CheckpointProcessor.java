@@ -120,34 +120,38 @@ public class CheckpointProcessor {
     if (shouldProcessFailedTrigger(checkPoint, application.cpFailedTrigger(), status)) {
       Counter counter = checkPointFailedCache.get(appId);
       if (counter == null) {
-        checkPointFailedCache.put(appId, new Counter(checkPoint.getTriggerTimestamp()));
+        counter = new Counter(checkPoint.getTriggerTimestamp());
+        checkPointFailedCache.put(appId, counter);
       } else {
-        long minute = counter.getDuration(checkPoint.getTriggerTimestamp());
-        if (minute <= application.getCpFailureRateInterval()
-            && counter.getCount() >= application.getCpMaxFailureInterval()) {
-          checkPointFailedCache.remove(appId);
-          FailoverStrategy failoverStrategy = FailoverStrategy.of(application.getCpFailureAction());
-          if (failoverStrategy == null) {
-            throw new IllegalArgumentException(
-                "Unexpected cpFailureAction: " + application.getCpFailureAction());
-          }
-          switch (failoverStrategy) {
-            case ALERT:
-              alertService.alert(application, CheckPointStatus.FAILED);
-              break;
-            case RESTART:
-              try {
-                applicationService.restart(application);
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-              break;
-            default:
-              // do nothing
-              break;
-          }
-        } else {
-          counter.increment();
+        counter.increment();
+      }
+
+      long minute = counter.getDuration(checkPoint.getTriggerTimestamp());
+      // if cp failure rate interval is greater than the configured interval, then clear the cache
+      if (minute > application.getCpFailureRateInterval()) {
+        checkPointFailedCache.remove(appId);
+      } else if (minute <= application.getCpFailureRateInterval()
+          && counter.getCount() >= application.getCpMaxFailureInterval()) {
+        checkPointFailedCache.remove(appId);
+        FailoverStrategy failoverStrategy = FailoverStrategy.of(application.getCpFailureAction());
+        if (failoverStrategy == null) {
+          throw new IllegalArgumentException(
+              "Unexpected cpFailureAction: " + application.getCpFailureAction());
+        }
+        switch (failoverStrategy) {
+          case ALERT:
+            alertService.alert(application, CheckPointStatus.FAILED);
+            break;
+          case RESTART:
+            try {
+              applicationService.restart(application);
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+            break;
+          default:
+            // do nothing
+            break;
         }
       }
     }
