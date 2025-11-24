@@ -431,9 +431,10 @@ public class FlinkAppHttpWatcher {
     Long appId = application.getId();
     Savepoint savepoint = Optional.ofNullable(savepointService.getLatest(appId)).orElse(null);
     String sourcePath = Optional.ofNullable(savepoint).map(Savepoint::getPath).orElse(null);
+    Integer type = Optional.ofNullable(savepoint).map(Savepoint::getType).orElse(0);
     log.info("get hdfs checkpoints, appId: {} , sourcePath: {}", appId, sourcePath);
 
-    if (!StringUtils.isEmpty(sourcePath)) {
+    if (!StringUtils.isEmpty(sourcePath) && type == 1) {
       Path path = new Path(sourcePath);
       String scheme = path.toUri().getScheme();
       if (scheme.equals("hdfs")) {
