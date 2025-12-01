@@ -26,6 +26,8 @@ import org.apache.streampark.console.core.service.ApplicationService;
 import org.apache.streampark.console.core.service.SavepointService;
 import org.apache.streampark.console.core.service.alert.AlertService;
 
+import org.apache.commons.lang3.ObjectUtils;
+
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.Getter;
@@ -119,20 +121,29 @@ public class CheckpointProcessor {
 
     if (shouldProcessFailedTrigger(checkPoint, application.cpFailedTrigger(), status)) {
       Counter counter = checkPointFailedCache.get(appId);
+      Long checkId = ObjectUtils.defaultIfNull(checkPoint.getId(), 0L);
+      if (counter != null) {
+        long minute = counter.getDuration(checkPoint.getTriggerTimestamp());
+        // if cp failure rate interval is greater than the configured interval, then clear the cache
+        if (minute > application.getCpFailureRateInterval()) {
+          counter = null;
+          checkPointFailedCache.remove(appId);
+        }
+      }
+
       if (counter == null) {
-        counter = new Counter(checkPoint.getTriggerTimestamp());
+        counter = new Counter(checkPoint.getTriggerTimestamp(), checkId);
         checkPointFailedCache.put(appId, counter);
-      } else {
+      } else if (!counter.getCheckId().equals(checkId)) {
+        counter.setCheckId(checkId);
         counter.increment();
       }
 
       long minute = counter.getDuration(checkPoint.getTriggerTimestamp());
-      // if cp failure rate interval is greater than the configured interval, then clear the cache
-      if (minute > application.getCpFailureRateInterval()) {
-        checkPointFailedCache.remove(appId);
-      } else if (minute <= application.getCpFailureRateInterval()
-          && counter.getCount() >= application.getCpMaxFailureInterval()) {
-        checkPointFailedCache.remove(appId);
+      if (minute <= application.getCpFailureRateInterval()
+          && counter.getCount() >= application.getCpMaxFailureInterval()
+          && counter.getIsAlert()) {
+        counter.setIsAlert(false);
         FailoverStrategy failoverStrategy = FailoverStrategy.of(application.getCpFailureAction());
         if (failoverStrategy == null) {
           throw new IllegalArgumentException(
@@ -203,10 +214,30 @@ public class CheckpointProcessor {
   public static class Counter {
     private final Long timestamp;
     private final AtomicInteger count;
+    private Long checkId;
+    private boolean isAlert;
 
-    public Counter(Long timestamp) {
+    public Counter(Long timestamp, Long checkId) {
       this.timestamp = timestamp;
       this.count = new AtomicInteger(1);
+      this.checkId = checkId;
+      this.isAlert = true;
+    }
+
+    public Long getCheckId() {
+      return checkId;
+    }
+
+    public boolean getIsAlert() {
+      return isAlert;
+    }
+
+    public void setCheckId(Long checkId) {
+      this.checkId = checkId;
+    }
+
+    public void setIsAlert(boolean isAlert) {
+      this.isAlert = isAlert;
     }
 
     public void increment() {
