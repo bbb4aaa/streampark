@@ -695,6 +695,13 @@ public class FlinkAppHttpWatcher {
           if (FlinkAppState.OTHER.equals(flinkAppState)) {
             String trackingUrl = yarnAppInfo.getApp().getTrackingUrl();
             if (trackingUrl != null && !trackingUrl.equals(application.getJobManagerUrl())) {
+              // When the Flink status fails and the program starts, yarn returns to run to obtain
+              // the
+              // yarn status. At this time, it returns as' UNDEFINED 'and joins the monitoring
+              // status
+              if (!isWatchingApp(application.getId()) && state.equalsIgnoreCase("UNDEFINED")) {
+                doWatching(application);
+              }
               application.setJobManagerUrl(trackingUrl);
               applicationService.updateJobManagerUrl(application.getId(), trackingUrl);
               applicationLogService.updateJobManagerUrl(application.getClusterId(), trackingUrl);
