@@ -224,6 +224,8 @@ public class Application implements Serializable {
   @TableField(updateStrategy = FieldStrategy.IGNORED)
   private String tags;
 
+  private Boolean restartSavepointRecovery;
+
   @TableField(updateStrategy = FieldStrategy.IGNORED)
   private String description;
 

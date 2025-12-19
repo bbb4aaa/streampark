@@ -62,6 +62,7 @@ export interface AppListRecord {
   build: boolean;
   restartSize: number;
   restartCount?: number;
+  restartSavepointRecovery: boolean;
   optionState: number;
   alertId?: any;
   args?: string;

@@ -108,6 +108,7 @@
         k8sRestExposedType: app.k8sRestExposedType,
         yarnQueue: app.yarnQueue,
         restartSize: app.restartSize,
+        restartSavepointRecovery: app.restartSavepointRecovery,
         alertId: selectAlertId,
         checkPointFailure: {
           cpMaxFailureInterval: app.cpMaxFailureInterval,

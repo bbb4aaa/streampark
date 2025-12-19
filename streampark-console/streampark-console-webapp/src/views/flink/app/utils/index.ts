@@ -279,6 +279,7 @@ export function handleSubmitParams(
     resolveOrder: values.resolveOrder,
     k8sRestExposedType: values.k8sRestExposedType,
     restartSize: values.restartSize,
+    restartSavepointRecovery: values.restartSavepointRecovery || true,
     alertId: values.alertId,
     description: values.description,
     k8sNamespace: values.k8sNamespace || null,

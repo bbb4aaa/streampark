@@ -29,6 +29,7 @@ import {
   renderTotalMemory,
   renderYarnQueue,
   renderFlinkCluster,
+  renderIsSetSavepointRecovery,
 } from './useFlinkRender';
 
 import { fetchCheckName } from '/@/api/flink/app/app';
@@ -367,6 +368,15 @@ export const useCreateAndEditSchema = (
           placeholder: t('flink.app.addAppTips.restartSizePlaceholder'),
           ...commonInputNum,
         },
+      },
+      {
+        field: 'restartSavepointRecovery',
+        label: t('flink.app.restartSavepointRecovery'),
+        ifShow: ({ values }) =>
+            edit?.mode == 'flink' ? true : !isK8sExecMode(values.executionMode),
+        component: 'Switch',
+        defaultValue: true,
+        render: ({ model, field }) => renderIsSetSavepointRecovery(model, field),
       },
       {
         field: 'alertId',

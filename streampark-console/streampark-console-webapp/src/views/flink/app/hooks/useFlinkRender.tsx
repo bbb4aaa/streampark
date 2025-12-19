@@ -460,6 +460,25 @@ export const renderIsSetConfig = (
   );
 };
 
+export const renderIsSetSavepointRecovery = (
+    model: Recordable,
+    field: string,
+) => {
+  // 确保默认值被设置
+  if (model[field] === undefined || model[field] === null) {
+    model[field] = true;
+  }
+
+  return (
+      <Switch
+          checkedChildren="ON"
+          unCheckedChildren="OFF"
+          checked={model[field]}
+          onChange={(checked) => (model[field] = checked)}
+      />
+  );
+};
+
 // render history version form item
 export const renderSqlHistory = (
   { model, flinkSqlHistory },

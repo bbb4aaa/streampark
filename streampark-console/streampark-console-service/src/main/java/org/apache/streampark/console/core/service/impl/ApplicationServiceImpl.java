@@ -1007,6 +1007,7 @@ public class ApplicationServiceImpl extends ServiceImpl<ApplicationMapper, Appli
     application.setDescription(appParam.getDescription());
     application.setAlertId(appParam.getAlertId());
     application.setRestartSize(appParam.getRestartSize());
+    application.setRestartSavepointRecovery(appParam.getRestartSavepointRecovery());
     application.setCpFailureAction(appParam.getCpFailureAction());
     application.setCpFailureRateInterval(appParam.getCpFailureRateInterval());
     application.setCpMaxFailureInterval(appParam.getCpMaxFailureInterval());
@@ -1935,6 +1936,9 @@ public class ApplicationServiceImpl extends ServiceImpl<ApplicationMapper, Appli
     String path = null;
     if (appParam.getRestoreOrTriggerSavepoint() != null
         && appParam.getRestoreOrTriggerSavepoint()) {
+      //      if (!appParam.getRestartSavepointRecovery()) {
+      //        return null;
+      //      }
       if (StringUtils.isBlank(appParam.getSavepointPath())) {
         Savepoint savepoint = savepointService.getLatest(appParam.getId());
         if (savepoint != null) {

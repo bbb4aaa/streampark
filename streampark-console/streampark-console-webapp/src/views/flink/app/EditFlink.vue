@@ -89,6 +89,7 @@
         executionMode: app.executionMode,
         yarnQueue: app.yarnQueue,
         restartSize: app.restartSize,
+        restartSavepointRecovery: app.restartSavepointRecovery,
         checkPointFailure: {
           cpMaxFailureInterval: app.cpMaxFailureInterval,
           cpFailureRateInterval: app.cpFailureRateInterval,
