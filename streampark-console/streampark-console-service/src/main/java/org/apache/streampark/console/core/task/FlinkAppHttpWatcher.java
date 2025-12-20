@@ -272,14 +272,20 @@ public class FlinkAppHttpWatcher {
         if (StopFrom.NONE.equals(stopFrom)) {
           Date lostTime = LOST_CACHE.getIfPresent(application.getId());
           if (lostTime == null) {
+            log.info("job lost null,set losttime to now,jobId:{}", application.getJobId());
             LOST_CACHE.put(application.getId(), new Date());
-          } else if (DateUtils.toSecondDuration(lostTime, new Date()) >= 30) {
+            return;
+          } else if (DateUtils.toSecondDuration(lostTime, new Date()) >= 60) {
+            log.info("job lost,jobId:{}", application.getJobId());
             savepointService.expire(application.getId());
             application.setState(FlinkAppState.LOST.getValue());
             WATCHING_APPS.remove(application.getId());
             LOST_CACHE.invalidate(application.getId());
+          } else {
+            return;
           }
         } else {
+          log.info("job canceled,jobId:{}", application.getJobId());
           application.setState(FlinkAppState.CANCELED.getValue());
         }
       }
@@ -288,6 +294,7 @@ public class FlinkAppHttpWatcher {
        which will directly identify the mission as cancelled or lost.
        Need clean savepoint.
       */
+      log.info("clear job state,jobId:{}", application.getJobId());
       application.setEndTime(new Date());
       cleanSavepoint(application);
       cleanOptioning(optionState, application.getId());
@@ -307,8 +314,12 @@ public class FlinkAppHttpWatcher {
             log.error(e.getMessage(), e);
           }
         } else {
+          log.info("job lost alert,jobId:{}", application.getJobId());
+          applicationService.updateRelease(application);
           alertService.alert(application, application.getFlinkAppStateEnum());
         }
+      } else {
+        applicationService.updateRelease(application);
       }
     }
   }
