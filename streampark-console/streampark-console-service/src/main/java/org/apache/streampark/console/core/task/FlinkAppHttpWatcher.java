@@ -235,9 +235,13 @@ public class FlinkAppHttpWatcher {
               cleanupLost(application);
             } catch (Exception flinkException) {
               log.warn("[StreamPark] get state from flink failed ", flinkException);
-              // query status from yarn rest api
               try {
-                handleHdfsPoints(application);
+                try {
+                  handleHdfsPoints(application);
+                } catch (Exception hdfsException) {
+                  log.warn("[StreamPark] get hdfs savepoint failed ", hdfsException);
+                }
+                // query status from yarn rest api
                 getFromYarnRestApi(application);
                 cleanupLost(application);
               } catch (Exception yarnException) {
